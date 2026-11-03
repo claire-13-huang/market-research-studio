@@ -1,20 +1,44 @@
-# Market Research Studio V0.2 · GitHub Pages 发布包
+# Market Research Studio V0.2
 
-本目录是可直接提交到单独 GitHub 仓库 `market-research-studio` 的静态网站文件。**不含参考 Excel、采购报价、竞品实数据或个人资料**。仓库公开时，源代码和附带数据会被公开。
+Amazon 美国站产品市场调研与选品决策工具（静态原型）。
 
-## 发布
+## 在线部署（仅首次设置）
 
-1. 在 GitHub 账户 `claire-13-huang` 下新建名为 `market-research-studio` 的 public 仓库（建议创建时不要选择 README、License 或 `.gitignore`，避免首次上传冲突）。
-2. 将本目录 `index.html`、`app.js`、`styles.css`、`assets/seed-data.js`、`.nojekyll` 和 `README.md` 提交到该仓库 `main` 分支根目录。
-3. 在仓库 **Settings → Pages → Build and deployment → Deploy from a branch → main → /(root) → Save**。
-4. 网站一般会在 `https://claire-13-huang.github.io/market-research-studio/` 可访问；实际地址以 Pages 页面显示为准。**当前未替用户创建仓库或启用 Pages，故上述链接仅为预计地址，不代表已经上线。**
+1. 打开 [Settings → Pages](https://github.com/claire-13-huang/market-research-studio/settings/pages)。
+2. 在 **Build and deployment → Source** 选择 **Deploy from a branch**。
+3. Branch 设置为 **main**，Folder 设置为 **/(root)**，点击 **Save**。
+4. 在 Pages 设置中等待 GitHub 显示实际访问地址。通常为 https://claire-13-huang.github.io/market-research-studio/ 。
 
-## 现有功能
+以后更新 `main` 分支中的前端文件，GitHub Pages 会自动重新发布。
 
-- 多项目、多 SKU；Excel 导入/字段映射；竞品数据库；市场 Dashboard；AI 结论替代为规则初稿。
-- 利润实验室：0%、10%、自定义利润率对应的售价，单件总成本、利润率和利润；按月销量、年销量或年销售额择一输入，联动单件/月度/年度收入、全部成本与利润。
-- 数据保存在浏览器 localStorage，原始上传文件另保存在当前浏览器 IndexedDB。版本存档也是**同浏览器本地存档，不是云端数据**；换设备不会同步。请定期导出 JSON 备份。
+## 已实现
 
-## 必须了解
+- 独立项目库和多 SKU / 变体编辑
+- Excel 竞品导入、字段匹配和竞品表
+- 市场 Dashboard：价格带、月销量和年化销量 / 销售额
+- 利润实验室：保本价、10% 和自定义目标利润率售价；单件/月度/年度成本与利润
+- 浏览器本地项目草稿、历史版本和导出
+- 基于规则的分析草稿（**尚非在线大模型 AI**）
 
-GitHub Pages 是静态网站托管，不提供数据库、账号登录、真正 AI 后端或私密数据共享。不能把密钥写入 JS。未来应通过独立后端/云数据库实现身份认证和跨设备同步。初次使用 Excel 导入需要联网从 SheetJS CDN 载入解析器。
+## 数据安全和功能边界
+
+这是**浏览器本地原型**，不是正式云端 SaaS。
+
+- 当前项目数据存储在当前浏览器的 localStorage；换浏览器或设备**不会同步**，清理网站数据可能导致记录丢失，请定期导出备份。
+- GitHub Pages 仅托管公开前端文件；不能安全存储用户密钥、私有项目数据，也不提供真正的账户登录、协作、数据库及 AI 服务。
+- 仓库**不包含**原始调研 Excel、采购报价和实际竞品明细。请勿把含敏感报价的表格直接提交到公开仓库。
+- Excel 导入使用 SheetJS CDN，相关解析器加载依赖网络。
+- 月销量数据如是单月截面，年销量/销售额仅为**年化推算**，不是历史年度实绩。
+- 建议后续增加独立云数据库和服务端 AI 接口，然后再实现跨设备存档、多人共享。
+
+## 目录
+
+- `index.html`：网页入口
+- `app.js`：前端功能和计算逻辑
+- `styles.css`：页面样式
+- `assets/seed-data.js`：空白演示项目
+- `.nojekyll`：静态文件直出
+
+## 后续更新
+
+在这个对话中说明需要修改的功能及问题，我可以在已连接的 GitHub 仓库上更新源代码，并在 Pages 已启用的情况下由 GitHub 自动发布。
