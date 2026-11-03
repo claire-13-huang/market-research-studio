@@ -1,0 +1,1 @@
+window.MRS_SEED = {"id":"demo-empty","name":"我的 Amazon 美国站调研","category":"Amazon US","keywords":"","status":"草稿","createdAt":"2026-11-03","updatedAt":"2026-11-03","notes":"首次使用：创建 SKU，上传 Excel 或手动添加竞品。","skus":[],"competitors":[],"imports":[],"versions":[],"report":""};
