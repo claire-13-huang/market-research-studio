@@ -1,0 +1,18 @@
+# Do not commit market research or private cost files to this public repository
+sample/
+private/
+research-data/
+*.xlsx
+*.xls
+*.csv
+*.zip
+*.pdf
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.DS_Store
+node_modules/
