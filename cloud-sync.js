@@ -191,7 +191,7 @@
     var oldSave=save;save=function(){oldSave.apply(this,arguments);cache();schedule()};
     var oldRender=render;render=function(){var out=oldRender.apply(this,arguments);readonly();return out};
     readonly();
-    if(!enabled()){notice('☁ 未连接数据库');checkRelease();return}
+    if(!enabled()){notice('☁ 未连接数据库');checkRelease();setInterval(checkRelease,120000);return}
     if(!window.supabase){notice('⚠ 云端组件加载失败');return}
     state.client=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     var r=await state.client.auth.getSession();
