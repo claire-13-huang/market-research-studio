@@ -12,7 +12,7 @@
   function viewer(p){p=p||active();return !!(p&&p.__cloud&&p.__cloud.ownerId!==state.user?.id)}
   function clean(x){return JSON.parse(JSON.stringify(x,function(k,v){return (k==='__cloud'||k==='fileKey')?undefined:v}))}
   function hash(x){var s=JSON.stringify(clean(x)),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return String(h>>>0)+':'+s.length}
-  function cache(){try{localStorage.setItem(KEY,JSON.stringify(app))}catch(e){console.warn('Cannot save local cache',e)}}
+  function cache(){try{var snapshot=Object.assign({},app,{projects:app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user?.id})});localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){console.warn('Cannot save local cache',e)}}
   function notice(s){state.message=s;var badge=el('#cloudBadge');if(badge)badge.textContent=s}
   function urlFor(id){var u=new URL(location.href);u.searchParams.set(PARAM,id);u.searchParams.delete('build');u.searchParams.delete('v');return u.toString()}
   function makeShell(){
@@ -143,7 +143,7 @@
       var allowed=new Set(q.data.map(function(row){return row.id}));
       var priorCount=app.projects.length;
       app.projects=app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user.id||allowed.has(p.__cloud.id)});
-      if(app.projects.length!==priorCount)changed=true;
+      if(app.projects.length!==priorCount){changed=true;if(!app.projects.some(function(p){return p.id===app.activeId}))app.activeId=app.projects[0]?.id||null}
       var target=focus||new URLSearchParams(location.search).get(PARAM);
       if(target){var shared=app.projects.find(function(p){return p.__cloud?.id===target});if(shared&&app.activeId!==shared.id){app.activeId=shared.id;changed=true}}
       else {var existing=app.projects.find(function(p){return p.id===app.activeId});
@@ -188,7 +188,7 @@
   }
   async function initCloud(){
     makeShell();
-    var oldSave=save;save=function(){oldSave.apply(this,arguments);schedule()};
+    var oldSave=save;save=function(){oldSave.apply(this,arguments);cache();schedule()};
     var oldRender=render;render=function(){var out=oldRender.apply(this,arguments);readonly();return out};
     readonly();
     if(!enabled()){notice('☁ 未连接数据库');checkRelease();return}
@@ -202,7 +202,7 @@
       if(state.user&&before!==state.user.id)setTimeout(function(){pull()},100);
       if(!state.user)notice('☁ 未登录');
     });
-    if(state.user){await pull();notice('☁ 已连接：'+state.user.email)}else notice('☁ 请登录以同步');
+    if(state.user){await pull();if(!state.message.startsWith('⚠'))notice('☁ 已连接：'+state.user.email)}else {notice('☁ 请登录以同步');if(new URLSearchParams(location.search).has(PARAM))show();}
     window.addEventListener('focus',function(){if(state.user)pull();checkRelease()});
     setInterval(function(){if(state.user)pull()},15000);
     setInterval(checkRelease,120000);
