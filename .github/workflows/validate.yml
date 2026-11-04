@@ -1,0 +1,22 @@
+name: Validate Market Research Studio
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check app.js
+          node --check report-visual.js
+          node --check cloud-sync.js
+          node --check cloud-config.js
+      - name: Validate release and asset links
+        run: |
+          node -e 'const fs=require("fs"); const html=fs.readFileSync("index.html","utf8"); const v=JSON.parse(fs.readFileSync("release.json","utf8")).version; if(!html.includes("cloud-sync.js?v="+v))process.exit(1); for(const file of ["app.js","styles.css","report-visual.js","cloud-config.js","cloud-sync.js","supabase/schema.sql"])if(!fs.existsSync(file))process.exit(1); console.log("Assets OK, release",v)'
