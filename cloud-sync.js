@@ -140,10 +140,17 @@
         if(old&&!old.__cloud&&row.owner_id===state.user.id){try{localStorage.setItem(KEY+'-before-cloud-'+row.id,JSON.stringify(old))}catch(e){}}
         if(i<0)app.projects.push(fresh);else app.projects[i]=fresh;changed=true;
       });
+      var allowed=new Set(q.data.map(function(row){return row.id}));
+      var priorCount=app.projects.length;
+      app.projects=app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user.id||allowed.has(p.__cloud.id)});
+      if(app.projects.length!==priorCount)changed=true;
       var target=focus||new URLSearchParams(location.search).get(PARAM);
       if(target){var shared=app.projects.find(function(p){return p.__cloud?.id===target});if(shared&&app.activeId!==shared.id){app.activeId=shared.id;changed=true}}
+      else {var existing=app.projects.find(function(p){return p.id===app.activeId});
+        var firstRemote=app.projects.find(function(p){return p.__cloud&&allowed.has(p.__cloud.id)});
+        if(firstRemote&&(!existing||existing.id==='demo-empty'||(!existing.__cloud&&existing.competitors?.length===0&&existing.skus?.length===0))) {app.activeId=firstRemote.id;changed=true}}
       if(changed){cache();render()}
-      notice('☁ 已读取最新云端数据 '+new Date().toLocaleTimeString());
+      notice(target&&!app.projects.some(function(p){return p.__cloud?.id===target})?'⚠ 该项目尚未授权给当前邮箱':'☁ 已读取最新云端数据 '+new Date().toLocaleTimeString());
     }catch(e){notice('⚠ 读取失败：'+e.message)}
     finally{state.pulling=false}
   }
