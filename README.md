@@ -1,3 +1,13 @@
+# Market Research Studio V0.5 — 云端协作预备版
+
+GitHub Pages 网页已包含 Supabase 同步客户端：登录邮箱、发布个人浏览器项目、按邮箱授权同事只读访问、同步保存、刷新时拉取新版本、检查前端发布版本。
+
+**重要：Supabase 仍需配置数据库和公开连接参数。只安装 ChatGPT Supabase 插件，不等于网页已经启用云端共享。** 配置和权限验证请见 [SUPABASE-SETUP.md](./SUPABASE-SETUP.md)。未连接前网站仍使用本地浏览器存储。
+
+本项目**不会**把客户采购成本、原始 Excel、供应链数据上传到公开 GitHub。浏览器客户端只使用 publishable/anon 公钥；绝不能提交 service_role、sb_secret 或数据库密码。共享项目时要注意：项目的 SKU 采购价和利润字段会被授权同事读取。
+
+---
+
 # Market Research Studio V0.3 — Amazon US 选品决策工作台
 
 静态 GitHub Pages 网页：项目库、多 SKU、Excel 智能筛选与分类、关键指标 Dashboard、利润实验室、调研结论草稿和版本存档。
