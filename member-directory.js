@@ -1,4 +1,4 @@
-/* Market Research Studio V0.7 - real member directory and multi-recipient sharing */
+/* Market Research Studio V0.8.1 - member directory; actionable share error diagnostics */
 (function () {
   'use strict';
   const state = {client:null,user:null,ready:false,profile:null,migrated:false,checking:false, lastError:''};
@@ -138,7 +138,18 @@
       notify('共享名单已保存。已授权 '+target.length+' 位成员；他们刷新后即可查看最新云端项目。');
       const status=$('#mrsDirectoryStatus');if(status)status.style.color='#18815d';
       const box=$('#mrsDirSelected');if(box)box.textContent='已保存 · '+target.length+' 人';
-    }catch(e){notify('操作失败：'+e.message+'。请重新打开以核对哪些成员已经被授权。')}
+    }catch(e){
+      const detail=String(e?.message||e||'未知错误');
+      if(/infinite recursion|42P17/i.test(detail)){
+        notify('数据库权限循环（42P17）：V0.8.1 数据库修复脚本尚未执行。请在 Supabase SQL Editor 运行 supabase/fix-share-recursion-v081.sql，再重新打开共享名单保存。');
+      }else if(/row.level.security|42501|permission denied/i.test(detail)){
+        notify('权限被数据库拒绝：请确认你有分享权限、对方账号已被管理员批准，并检查 Supabase RLS。具体原因：'+detail);
+      }else if(/duplicate key|23505/i.test(detail)){
+        notify('部分成员已有授权，请关闭并重新打开名单核对，不会删除原授权。详情：'+detail);
+      }else{
+        notify('保存失败：'+detail+'。请重新打开名单，核对已成功授权的成员。');
+      }
+    }
     finally{btn.disabled=false}
   }
   document.addEventListener('click',event=>{
