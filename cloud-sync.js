@@ -5,7 +5,7 @@
   var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:''};
   window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user}};
   var PARAM = 'shared_project';
-  var RELEASE = '0.5.0';
+  var RELEASE = '0.6.0';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
@@ -38,11 +38,12 @@
     if(!state.user){dialog('<p>请输入邮箱，使用收到的登录链接验证身份。只有被邀请的邮箱才能看到共享项目。</p><label>邮箱</label><input id="cloudEmail" type="email" placeholder="你的工作邮箱"><button class="primary" data-cloud="login">发送登录链接</button>');return}
     var p=active(),c=p?.__cloud,owner=c?.ownerId===state.user.id||!!window.MRS_TEAM?.isAdmin?.();
     var body='<p>当前账号：<b>'+escapeHtml(state.user.email)+'</b></p><div class="cloud-note">'+escapeHtml(state.message||'登录成功')+'</div><div><button data-cloud="list">刷新云端项目</button><button data-cloud="logout">退出登录</button>';
-    if(p&&!c)body+='<button class="primary" data-cloud="publish">将当前项目发布到云端</button>';
+    if(p&&!c&&(!window.MRS_TEAM||window.MRS_TEAM.canCreate()))body+='<button class="primary" data-cloud="publish">将当前项目发布到云端</button>';
     if(owner)body+='<button class="primary" data-cloud="push">立即保存最新进度</button>';
     body+='</div>';
     if(c)body+='<p>当前项目：'+escapeHtml(p.name)+' · '+(owner?(c.ownerId===state.user.id?'所有者':'管理员'):'只读共享')+' · 云端版本 V'+c.revision+'</p>';
-    if(owner)body+='<label>授权同事的邮箱（只读）</label><input id="cloudInvite" type="email" placeholder="同事的登录邮箱"><button class="primary" data-cloud="invite">授权邮箱</button><button data-cloud="share">复制项目链接</button>';
+    if(owner&&(!window.MRS_TEAM||window.MRS_TEAM.canShare()))body+='<label>授权同事的邮箱（只读）</label><input id="cloudInvite" type="email" placeholder="同事的登录邮箱"><button class="primary" data-cloud="invite">授权邮箱</button><button data-cloud="share">复制项目链接</button>';
+    else if(owner)body+='<p>分享权限尚未启用，请先到「团队管理」提交申请。</p>';
     body+='<div id="cloudList" style="margin-top:18px"></div>';
     dialog(body);list();
   }
@@ -87,6 +88,7 @@
   }
   async function publish(){
     var p=active();if(!p||!state.user)return;
+    if(window.MRS_TEAM&&!window.MRS_TEAM.canCreate()){notice('⚠ 当前账号未获得创建项目权限');return}
     if(p.__cloud){notice('☁ 已发布，不需要重复发布');return}
     var content=clean(p);
     var q=await state.client.from('mrs_projects').insert({owner_id:state.user.id,local_project_id:p.id,name:p.name,payload:content}).select('id,revision').single();
