@@ -126,3 +126,7 @@ using (
 );
 -- No anonymous access to business or directory data.
 revoke all on public.mrs_member_profiles,public.mrs_project_shares from anon;
+
+-- Retire manual email-based invitations for future shares; old invitation rows remain for audit.
+-- All new sharing must target an approved registered user's UUID.
+revoke insert,update,delete on public.mrs_project_invites from authenticated;
