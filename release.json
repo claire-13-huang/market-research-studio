@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0",
+  "version": "0.8.1",
   "releasedAt": "2026-11-05",
-  "description": "SKU procurement CNY-to-USD synchronization, USD-only unit cost inputs, preserved historical overrides"
+  "description": "Fix share permissions recursion; registered team member multi-select sharing and clear error messages"
 }
