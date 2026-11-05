@@ -1,5 +1,5 @@
 {
-  "version": "0.8.2",
+  "version": "0.8.3",
   "releasedAt": "2026-11-05",
-  "description": "Sync latest project payload before sharing; auto-open first shared project for members; improve missing-payload diagnostics; harden shared project read access"
+  "description": "Verify project payload is uploaded before sharing; auto-open shared projects for members; display cloud SKU/competitor/version counts; improve shared-project visibility diagnostics"
 }
