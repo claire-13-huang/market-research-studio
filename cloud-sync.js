@@ -3,9 +3,9 @@
   'use strict';
   var cfg = window.MRS_CLOUD_CONFIG || {};
   var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:''};
-  window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user}};
+  window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user,project:active()}};
   var PARAM = 'shared_project';
-  var RELEASE = '0.6.0';
+  var RELEASE = '0.7.0';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
@@ -42,7 +42,7 @@
     if(owner)body+='<button class="primary" data-cloud="push">立即保存最新进度</button>';
     body+='</div>';
     if(c)body+='<p>当前项目：'+escapeHtml(p.name)+' · '+(owner?(c.ownerId===state.user.id?'所有者':'管理员'):'只读共享')+' · 云端版本 V'+c.revision+'</p>';
-    if(owner&&(!window.MRS_TEAM||window.MRS_TEAM.canShare()))body+='<label>授权同事的邮箱（只读）</label><input id="cloudInvite" type="email" placeholder="同事的登录邮箱"><button class="primary" data-cloud="invite">授权邮箱</button><button data-cloud="share">复制项目链接</button>';
+    if(owner&&(!window.MRS_TEAM||window.MRS_TEAM.canShare()))body+='<label>共享给已加入团队的成员</label><p>只选择已注册、已审批的团队成员，支持同时勾选多人。</p><button class="primary" data-cloud="share-members">选择共享成员（可多选）</button><button data-cloud="share">复制项目链接</button>';
     else if(owner)body+='<p>分享权限尚未启用，请先到「团队管理」提交申请。</p>';
     body+='<div id="cloudList" style="margin-top:18px"></div>';
     dialog(body);list();
@@ -78,7 +78,8 @@
     if(which==='list'){await pull();show();return}
     if(which==='publish'){await publish();show();return}
     if(which==='push'){await push(true);show();return}
-    if(which==='invite'){await invite();show();return}
+    if(which==='share-members'){el('#cloudOverlay')?.remove();window.MRS_DIRECTORY?.openSharePicker?.();return}
+    if(which==='invite'){notice('请从团队成员列表中选择已注册用户');show();return}
     if(which==='share'){
       var p=active();if(!p?.__cloud)return;
       try{await navigator.clipboard.writeText(urlFor(p.__cloud.id));notice('☁ 已复制分享链接');}catch(e){prompt('复制下面的网址',urlFor(p.__cloud.id))}
