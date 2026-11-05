@@ -1,5 +1,5 @@
 {
-  "version": "0.8.1",
+  "version": "0.8.2",
   "releasedAt": "2026-11-05",
-  "description": "Fix share permissions recursion; registered team member multi-select sharing and clear error messages"
+  "description": "Sync latest project payload before sharing; auto-open first shared project for members; improve missing-payload diagnostics; harden shared project read access"
 }
