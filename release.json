@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "releasedAt": "2026-11-05",
-  "description": "Administrator center, member approval, cloud project oversight and sharing permissions"
+  "description": "Verified member names, team member directory and multiple-person share picker"
 }
