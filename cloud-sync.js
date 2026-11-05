@@ -3,13 +3,14 @@
   'use strict';
   var cfg = window.MRS_CLOUD_CONFIG || {};
   var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:''};
+  window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user}};
   var PARAM = 'shared_project';
   var RELEASE = '0.5.0';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
   function enabled(){return /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(String(cfg.url||'')) && String(cfg.publishableKey||'').length>15}
-  function viewer(p){p=p||active();return !!(p&&p.__cloud&&p.__cloud.ownerId!==state.user?.id)}
+  function viewer(p){p=p||active();return !!(p&&p.__cloud&&p.__cloud.ownerId!==state.user?.id&&!window.MRS_TEAM?.isAdmin?.())}
   function clean(x){return JSON.parse(JSON.stringify(x,function(k,v){return (k==='__cloud'||k==='fileKey')?undefined:v}))}
   function hash(x){var s=JSON.stringify(clean(x)),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return String(h>>>0)+':'+s.length}
   function cache(){try{var snapshot=Object.assign({},app,{projects:app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user?.id})});localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){console.warn('Cannot save local cache',e)}}
@@ -35,12 +36,12 @@
     if(!enabled()){dialog('<div class="cloud-note">网站已经加入同步模块，但尚未配置 Supabase 项目。现在其他同事刷新仍看不到你的浏览器数据。</div><p>按仓库 SUPABASE-SETUP.md 创建数据库、配置网址和公开 publishable key，之后可发布当前项目。不要上传 service_role 密钥，也不要把包含采购成本的 Excel 提交到公开 GitHub。</p>');return}
     if(!state.client){dialog('<p>Supabase SDK 加载失败，请检查网络后刷新。</p>');return}
     if(!state.user){dialog('<p>请输入邮箱，使用收到的登录链接验证身份。只有被邀请的邮箱才能看到共享项目。</p><label>邮箱</label><input id="cloudEmail" type="email" placeholder="你的工作邮箱"><button class="primary" data-cloud="login">发送登录链接</button>');return}
-    var p=active(),c=p?.__cloud,owner=c?.ownerId===state.user.id;
+    var p=active(),c=p?.__cloud,owner=c?.ownerId===state.user.id||!!window.MRS_TEAM?.isAdmin?.();
     var body='<p>当前账号：<b>'+escapeHtml(state.user.email)+'</b></p><div class="cloud-note">'+escapeHtml(state.message||'登录成功')+'</div><div><button data-cloud="list">刷新云端项目</button><button data-cloud="logout">退出登录</button>';
     if(p&&!c)body+='<button class="primary" data-cloud="publish">将当前项目发布到云端</button>';
     if(owner)body+='<button class="primary" data-cloud="push">立即保存最新进度</button>';
     body+='</div>';
-    if(c)body+='<p>当前项目：'+escapeHtml(p.name)+' · '+(owner?'所有者':'只读共享')+' · 云端版本 V'+c.revision+'</p>';
+    if(c)body+='<p>当前项目：'+escapeHtml(p.name)+' · '+(owner?(c.ownerId===state.user.id?'所有者':'管理员'):'只读共享')+' · 云端版本 V'+c.revision+'</p>';
     if(owner)body+='<label>授权同事的邮箱（只读）</label><input id="cloudInvite" type="email" placeholder="同事的登录邮箱"><button class="primary" data-cloud="invite">授权邮箱</button><button data-cloud="share">复制项目链接</button>';
     body+='<div id="cloudList" style="margin-top:18px"></div>';
     dialog(body);list();
@@ -95,7 +96,8 @@
   }
   async function invite(){
     var p=active(),c=p?.__cloud;
-    if(!c||c.ownerId!==state.user.id)return;
+    if(!c||!(c.ownerId===state.user.id||window.MRS_TEAM?.isAdmin?.()))return;
+    if(window.MRS_TEAM&&!window.MRS_TEAM.canShare()){notice('⚠ 分享权限尚未授权，请先到团队管理申请');return}
     var mail=el('#cloudInvite')?.value.trim().toLowerCase();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail||'')){alert('请输入正确的同事邮箱');return}
     var r=await state.client.from('mrs_project_invites').upsert({project_id:c.id,email:mail,added_by:state.user.id},{onConflict:'project_id,email'});
@@ -107,7 +109,7 @@
     clearTimeout(state.timer);notice('☁ 修改待同步…');state.timer=setTimeout(function(){push(false)},900);
   }
   async function push(force){
-    var p=active(),c=p?.__cloud;if(!state.client||!state.user||!c||c.ownerId!==state.user.id)return;
+    var p=active(),c=p?.__cloud;if(!state.client||!state.user||!c||!(c.ownerId===state.user.id||window.MRS_TEAM?.isAdmin?.()))return;
     if(state.pushing){state.queued=true;return}
     var sig=hash(p);if(!force&&sig===c.hash){notice('☁ 云端已是最新');return}
     state.pushing=true;notice('☁ 正在保存…');
@@ -196,9 +198,11 @@
     state.client=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     var r=await state.client.auth.getSession();
     state.user=r.data?.session?.user||null;
+    window.dispatchEvent(new CustomEvent('mrs:auth-change'));
     state.client.auth.onAuthStateChange(function(evt,session){
       var before=state.user?.id;
       state.user=session?.user||null;
+      window.dispatchEvent(new CustomEvent('mrs:auth-change'));
       if(state.user&&before!==state.user.id)setTimeout(function(){pull()},100);
       if(!state.user)notice('☁ 未登录');
     });
