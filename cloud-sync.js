@@ -2,10 +2,10 @@
 (function () {
   'use strict';
   var cfg = window.MRS_CLOUD_CONFIG || {};
-  var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:''};
-  window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user,project:active()}};
+  var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:'',initialPullDone:false};
+  window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user,project:active(),pushLatest:pushLatest}};
   var PARAM = 'shared_project';
-  var RELEASE = '0.8.1';
+  var RELEASE = '0.8.2';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
@@ -112,19 +112,26 @@
     clearTimeout(state.timer);notice('☁ 修改待同步…');state.timer=setTimeout(function(){push(false)},900);
   }
   async function push(force){
-    var p=active(),c=p?.__cloud;if(!state.client||!state.user||!c||!(c.ownerId===state.user.id||window.MRS_TEAM?.isAdmin?.()))return;
-    if(state.pushing){state.queued=true;return}
-    var sig=hash(p);if(!force&&sig===c.hash){notice('☁ 云端已是最新');return}
-    state.pushing=true;notice('☁ 正在保存…');
+    var p=active(),c=p?.__cloud;
+    if(!state.client||!state.user||!c||!(c.ownerId===state.user.id||window.MRS_TEAM?.isAdmin?.()))return false;
+    if(state.pushing){state.queued=true;return false}
+    var sig=hash(p);if(!force&&sig===c.hash){notice('☁ 云端已是最新');return true}
+    state.pushing=true;notice('☁ 正在保存最新项目内容…');
     try{
       var version=c.revision;
       var q=await state.client.from('mrs_projects').update({name:p.name,payload:clean(p),revision:version+1,updated_at:new Date().toISOString()}).eq('id',c.id).eq('revision',version).select('revision').maybeSingle();
       if(q.error)throw q.error;
-      if(!q.data){notice('⚠ 云端有新版本；请先备份，再从云端刷新，未覆盖任何数据');return}
-      c.revision=q.data.revision;c.hash=sig;cache();notice('☁ 已保存到云端 V'+c.revision);
+      if(!q.data){notice('⚠ 云端版本已变化；为防止覆盖同事的数据，未保存本次内容');return false}
+      c.revision=q.data.revision;c.hash=sig;cache();notice('☁ 最新内容已保存到云端 V'+c.revision);
       if(hash(p)!==sig)state.queued=true;
-    }catch(e){notice('⚠ 同步失败，本机仍有草稿：'+e.message)}
+      return true;
+    }catch(e){notice('⚠ 最新内容同步失败，本机草稿仍保留：'+e.message);return false}
     finally{state.pushing=false;if(state.queued){state.queued=false;schedule()}}
+  }
+  async function pushLatest(){
+    for(var i=0;state.pushing&&i<50;i++)await new Promise(function(resolve){setTimeout(resolve,100)});
+    if(state.pushing)return false;
+    return await push(true);
   }
   async function pull(focus){
     if(!state.client||!state.user||state.pulling)return;
@@ -132,10 +139,11 @@
     try{
       var q=await state.client.from('mrs_projects').select('id,local_project_id,name,owner_id,payload,revision,updated_at').order('updated_at',{ascending:false});
       if(q.error)throw q.error;
-      var changed=false;
+      var changed=false,invalidPayload=[];
       q.data.forEach(function(row){
         var content=row.payload;
-        if(!content?.id||!Array.isArray(content.skus)||!Array.isArray(content.competitors))return;
+        if(typeof content==='string'){try{content=JSON.parse(content)}catch(e){content=null}}
+        if(!content?.id||!Array.isArray(content.skus)||!Array.isArray(content.competitors)){invalidPayload.push(row);return}
         var i=app.projects.findIndex(function(p){return p.__cloud?.id===row.id||(p.id===row.local_project_id&&row.owner_id===state.user.id)});
         var old=i<0?null:app.projects[i];
         if(old?.__cloud?.revision===row.revision)return;
@@ -150,12 +158,27 @@
       app.projects=app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user.id||allowed.has(p.__cloud.id)});
       if(app.projects.length!==priorCount){changed=true;if(!app.projects.some(function(p){return p.id===app.activeId}))app.activeId=app.projects[0]?.id||null}
       var target=focus||new URLSearchParams(location.search).get(PARAM);
-      if(target){var shared=app.projects.find(function(p){return p.__cloud?.id===target});if(shared&&app.activeId!==shared.id){app.activeId=shared.id;changed=true}}
-      else {var existing=app.projects.find(function(p){return p.id===app.activeId});
-        var firstRemote=app.projects.find(function(p){return p.__cloud&&allowed.has(p.__cloud.id)});
-        if(firstRemote&&(!existing||existing.id==='demo-empty'||(!existing.__cloud&&existing.competitors?.length===0&&existing.skus?.length===0))) {app.activeId=firstRemote.id;changed=true}}
+      if(target){
+        var targetRow=q.data.find(function(row){return row.id===target});
+        var targetInvalid=invalidPayload.some(function(row){return row.id===target});
+        var shared=app.projects.find(function(p){return p.__cloud?.id===target});
+        if(shared&&app.activeId!==shared.id){app.activeId=shared.id;changed=true}
+        if(targetInvalid)notice('⚠ 已找到共享项目授权，但云端项目内容格式不完整；请所有者重新保存最新进度。');
+        else if(!shared)notice('⚠ 当前账号没有读取到该共享项目；请管理员核对成员状态与项目授权。');
+        else notice('☁ 已打开共享项目：'+shared.name+' · V'+shared.__cloud.revision);
+      }else if(!state.initialPullDone){
+        var current=app.projects.find(function(p){return p.id===app.activeId});
+        var firstShared=q.data.find(function(row){return row.owner_id!==state.user.id&&!invalidPayload.some(function(x){return x.id===row.id})});
+        if(firstShared&&(!current?.__cloud||current.__cloud.ownerId===state.user.id)){
+          var sharedFirst=app.projects.find(function(p){return p.__cloud?.id===firstShared.id});
+          if(sharedFirst&&app.activeId!==sharedFirst.id){app.activeId=sharedFirst.id;changed=true}
+        }
+        notice(invalidPayload.length?'⚠ '+invalidPayload.length+' 个云端项目的数据结构异常，未显示；请所有者重新保存。':'☁ 已读取 '+q.data.length+' 个可访问云端项目 '+new Date().toLocaleTimeString());
+      }else{
+        notice(invalidPayload.length?'⚠ '+invalidPayload.length+' 个云端项目内容格式异常，未显示。':'☁ 已读取最新云端数据 '+new Date().toLocaleTimeString());
+      }
+      state.initialPullDone=true;
       if(changed){cache();render()}
-      notice(target&&!app.projects.some(function(p){return p.__cloud?.id===target})?'⚠ 该项目尚未授权给当前邮箱':'☁ 已读取最新云端数据 '+new Date().toLocaleTimeString());
     }catch(e){notice('⚠ 读取失败：'+e.message)}
     finally{state.pulling=false}
   }
@@ -206,8 +229,8 @@
       var before=state.user?.id;
       state.user=session?.user||null;
       window.dispatchEvent(new CustomEvent('mrs:auth-change'));
-      if(state.user&&before!==state.user.id)setTimeout(function(){pull()},100);
-      if(!state.user)notice('☁ 未登录');
+      if(state.user&&before!==state.user.id){state.initialPullDone=false;setTimeout(function(){pull()},100)}
+      if(!state.user){state.initialPullDone=false;notice('☁ 未登录')}
     });
     if(state.user){await pull();if(!state.message.startsWith('⚠'))notice('☁ 已连接：'+state.user.email)}else {notice('☁ 请登录以同步');if(new URLSearchParams(location.search).has(PARAM))show();}
     window.addEventListener('focus',function(){if(state.user)pull();checkRelease()});
