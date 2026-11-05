@@ -1,5 +1,5 @@
 {
-  "version": "0.8.3",
+  "version": "0.8.4",
   "releasedAt": "2026-11-05",
-  "description": "Verify project payload is uploaded before sharing; auto-open shared projects for members; display cloud SKU/competitor/version counts; improve shared-project visibility diagnostics"
+  "description": "Repair shared project local ID collision that displayed empty seed data; add per-account diagnostics"
 }
