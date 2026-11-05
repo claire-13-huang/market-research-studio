@@ -21,6 +21,13 @@
     var style=document.createElement('style');
     style.textContent='.mrs-team-backdrop{position:fixed;inset:0;background:#10182b99;z-index:10030;display:flex;align-items:center;justify-content:center;padding:18px}.mrs-team-card{background:white;border-radius:18px;color:#1c2940;width:min(860px,100%);max-height:90vh;overflow:auto;padding:26px;box-shadow:0 16px 75px #09132260}.mrs-team-card h2{font-size:24px;margin:0 0 6px}.mrs-team-card h3{font-size:16px;margin:24px 0 10px}.mrs-team-card p,.mrs-team-card small{color:#64748b}.mrs-team-card table{width:100%;border-collapse:collapse;font-size:13px}.mrs-team-card td,.mrs-team-card th{padding:10px 7px;text-align:left;border-bottom:1px solid #e9edf5}.mrs-team-card button{padding:7px 11px;border:1px solid #cfdbed;background:#f8faff;border-radius:9px;cursor:pointer;margin:2px}.mrs-team-card button.primary{background:#2865d9;color:white;border-color:#2865d9}.mrs-team-card button:disabled{opacity:.55}.mrs-team-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between}.mrs-team-muted{font-size:12px;color:#718096}.mrs-team-gate{position:fixed;inset:0;z-index:9980;background:#f6f8fc;display:flex;align-items:center;justify-content:center;padding:20px}.mrs-team-gate-inner{max-width:520px;width:100%;padding:34px;background:#fff;border:1px solid #e1e9f6;border-radius:18px;box-shadow:0 14px 60px #11214418;text-align:center}.mrs-team-gate-inner button{padding:11px 18px;border:none;border-radius:9px;background:#2865d9;color:#fff;cursor:pointer}.mrs-team-notice{padding:12px;border-radius:10px;background:#edf3ff;color:#23416b;font-size:13px;margin:12px 0}';
     document.head.appendChild(style);
+    document.addEventListener('click',function(ev){
+      var item=ev.target.closest('[data-action="new-project"]');
+      if(item&&state.available&&online()&&!canCreate()){
+        ev.preventDefault();ev.stopImmediatePropagation();
+        alert('当前账号尚未获得创建项目权限，请联系管理员。');
+      }
+    },true);
     document.addEventListener('click',function(ev){var a=ev.target.closest('[data-team-action]');if(a)act(a.dataset.teamAction,a)},false);
   }
   function notice(msg){state.message=msg}
@@ -58,8 +65,11 @@
         state.client.from('mrs_team_members').select('user_id,email,status,can_create,can_share').eq('user_id',state.user.id).maybeSingle()
       ]);
       if(r[0].error||r[1].error){state.available=false;notice('权限表未就绪：请先执行 team-access-v06.sql');return}
+      var previousAdmin=state.admin,previousStatus=state.member?.status;
       state.available=true;state.admin=!!r[0].data;state.member=r[1].data||null;
-      addUI();showGate();setButton();await logLogin();
+      addUI();showGate();setButton();
+      if((previousAdmin!==state.admin||previousStatus!==state.member?.status)&&typeof window.render==='function')window.render();
+      await logLogin();
     }catch(e){notice('权限读取失败：'+e.message)}
     finally{state.refreshing=false}
   }
