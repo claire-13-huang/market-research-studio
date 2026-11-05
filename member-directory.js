@@ -1,4 +1,4 @@
-/* Market Research Studio V0.8.1 - member directory; actionable share error diagnostics */
+/* Market Research Studio V0.8.2 - sync project payload before changing share access */
 (function () {
   'use strict';
   const state = {client:null,user:null,ready:false,profile:null,migrated:false,checking:false, lastError:''};
@@ -125,6 +125,10 @@
     const remove=picker.selected.filter(id=>!selected.has(id));
     btn.disabled=true;
     try{
+      const cloud=window.MRS_CLOUD_CONTEXT?.();
+      if(typeof cloud?.pushLatest!=='function')throw new Error('网页同步模块尚未更新，请先强制刷新网站后重试');
+      const synced=await cloud.pushLatest();
+      if(!synced)throw new Error('项目最新内容尚未成功上传到云端。共享名单未变更；请先到团队同步查看同步状态并解决版本冲突。');
       if(add.length){
         const payload=add.map(recipient_id=>({project_id:picker.projectId,recipient_id,granted_by:state.user.id}));
         const r=await state.client.from('mrs_project_shares').insert(payload);
