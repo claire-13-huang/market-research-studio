@@ -169,7 +169,7 @@
       }else if(!state.initialPullDone){
         var current=app.projects.find(function(p){return p.id===app.activeId});
         var firstShared=q.data.find(function(row){return row.owner_id!==state.user.id&&!invalidPayload.some(function(x){return x.id===row.id})});
-        if(firstShared&&(!current?.__cloud||current.__cloud.ownerId===state.user.id)){
+        if(firstShared&&!current?.__cloud){
           var sharedFirst=app.projects.find(function(p){return p.__cloud?.id===firstShared.id});
           if(sharedFirst&&app.activeId!==sharedFirst.id){app.activeId=sharedFirst.id;changed=true}
         }
