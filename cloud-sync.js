@@ -49,12 +49,16 @@
   }
   async function list(){
     if(!state.client||!state.user||!el('#cloudList'))return;
-    var q=await state.client.from('mrs_projects').select('id,name,owner_id,revision,updated_at').order('updated_at',{ascending:false});
+    var q=await state.client.from('mrs_projects').select('id,name,owner_id,revision,updated_at,payload').order('updated_at',{ascending:false});
     if(!el('#cloudList'))return;
     if(q.error){el('#cloudList').textContent='读取失败：'+q.error.message;return}
     var html='<b>当前账号可访问的项目（'+q.data.length+'）</b>';
     q.data.forEach(function(row){
-      html+='<div class="cloud-line"><div><b>'+escapeHtml(row.name)+'</b><div style="font-size:12px;color:#697a92">'+(row.owner_id===state.user.id?'我创建的':'同事共享')+' · V'+row.revision+' · '+escapeHtml((row.updated_at||'').slice(0,16))+'</div></div><button data-cloud="open" data-id="'+escapeHtml(row.id)+'">打开</button></div>';
+      var data=row.payload;if(typeof data==='string'){try{data=JSON.parse(data)}catch(e){data=null}}
+      var summary=data&&Array.isArray(data.skus)&&Array.isArray(data.competitors)
+        ? data.skus.length+' SKU · '+data.competitors.length+' 竞品 · '+(data.versions||[]).length+' 版本'
+        : '项目内容格式异常，请联系所有者重新保存';
+      html+='<div class="cloud-line"><div><b>'+escapeHtml(row.name)+'</b><div style="font-size:12px;color:#697a92">'+(row.owner_id===state.user.id?'我创建的':'同事共享')+' · V'+row.revision+' · '+escapeHtml((row.updated_at||'').slice(0,16))+'</div><div style="font-size:12px;color:#42618e;margin-top:3px">'+escapeHtml(summary)+'</div></div><button data-cloud="open" data-id="'+escapeHtml(row.id)+'">打开</button></div>';
     });
     if(!q.data.length)html+='<p>尚无云端项目，请在自己的项目中选择“发布”。</p>';
     el('#cloudList').innerHTML=html;
@@ -131,7 +135,7 @@
   async function pushLatest(){
     for(var i=0;state.pushing&&i<50;i++)await new Promise(function(resolve){setTimeout(resolve,100)});
     if(state.pushing)return false;
-    return await push(true);
+    return await push(false);
   }
   async function pull(focus){
     if(!state.client||!state.user||state.pulling)return;
@@ -159,7 +163,6 @@
       if(app.projects.length!==priorCount){changed=true;if(!app.projects.some(function(p){return p.id===app.activeId}))app.activeId=app.projects[0]?.id||null}
       var target=focus||new URLSearchParams(location.search).get(PARAM);
       if(target){
-        var targetRow=q.data.find(function(row){return row.id===target});
         var targetInvalid=invalidPayload.some(function(row){return row.id===target});
         var shared=app.projects.find(function(p){return p.__cloud?.id===target});
         if(shared&&app.activeId!==shared.id){app.activeId=shared.id;changed=true}
