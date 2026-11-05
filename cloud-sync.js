@@ -105,7 +105,7 @@
   }
   function schedule(){
     var p=active();
-    if(!state.user||!p?.__cloud||p.__cloud.ownerId!==state.user.id)return;
+    if(!state.user||!p?.__cloud||!(p.__cloud.ownerId===state.user.id||window.MRS_TEAM?.isAdmin?.()))return;
     clearTimeout(state.timer);notice('☁ 修改待同步…');state.timer=setTimeout(function(){push(false)},900);
   }
   async function push(force){
