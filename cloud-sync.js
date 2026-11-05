@@ -5,15 +5,23 @@
   var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:'',initialPullDone:false};
   window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user,project:active(),pushLatest:pushLatest}};
   var PARAM = 'shared_project';
-  var RELEASE = '0.8.3';
+  var RELEASE = '0.8.4';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
   function enabled(){return /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(String(cfg.url||'')) && String(cfg.publishableKey||'').length>15}
   function viewer(p){p=p||active();return !!(p&&p.__cloud&&p.__cloud.ownerId!==state.user?.id&&!window.MRS_TEAM?.isAdmin?.())}
-  function clean(x){return JSON.parse(JSON.stringify(x,function(k,v){return (k==='__cloud'||k==='fileKey')?undefined:v}))}
+  function clean(x){
+    // The local view ID differs from the owner's original project ID for shared records.
+    // When an admin saves another person's project, keep the original canonical ID in the cloud payload.
+    var canonical=x?.__cloud?.originalLocalId;
+    var value=canonical?Object.assign({},x,{id:canonical}):x;
+    return JSON.parse(JSON.stringify(value,function(k,v){return (k==='__cloud'||k==='fileKey')?undefined:v}));
+  }
   function hash(x){var s=JSON.stringify(clean(x)),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return String(h>>>0)+':'+s.length}
-  function cache(){try{var snapshot=Object.assign({},app,{projects:app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user?.id})});localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){console.warn('Cannot save local cache',e)}}
+  function cache(){try{var snapshot=Object.assign({},app,{projects:app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user?.id})});
+      if(!snapshot.projects.some(function(p){return p.id===snapshot.activeId}))snapshot.activeId=snapshot.projects[0]?.id||null;
+      localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){console.warn('Cannot save local cache',e)}}
   function notice(s){state.message=s;var badge=el('#cloudBadge');if(badge)badge.textContent=s}
   function urlFor(id){var u=new URL(location.href);u.searchParams.set(PARAM,id);u.searchParams.delete('build');u.searchParams.delete('v');return u.toString()}
   function makeShell(){
@@ -150,9 +158,14 @@
         if(!content?.id||!Array.isArray(content.skus)||!Array.isArray(content.competitors)){invalidPayload.push(row);return}
         var i=app.projects.findIndex(function(p){return p.__cloud?.id===row.id||(p.id===row.local_project_id&&row.owner_id===state.user.id)});
         var old=i<0?null:app.projects[i];
-        if(old?.__cloud?.revision===row.revision)return;
+        // Every visitor starts with the same "demo-empty" local ID.
+        // Never let a teammate's shared project keep that local ID:
+        // project() looks up by ID and would otherwise pick the empty local seed.
+        var isShared=row.owner_id!==state.user.id;
+        var displayId=isShared?'shared-cloud-'+row.id:content.id;
+        if(old?.__cloud?.revision===row.revision&&old.id===displayId)return;
         if(old?.__cloud?.ownerId===state.user.id&&hash(old)!==old.__cloud.hash){notice('⚠ 本机有尚未同步的修改，未覆盖');return}
-        var fresh=Object.assign({},content,{__cloud:{id:row.id,ownerId:row.owner_id,revision:row.revision}});
+        var fresh=Object.assign({},content,{id:displayId,__cloud:{id:row.id,ownerId:row.owner_id,revision:row.revision,originalLocalId:isShared?content.id:undefined}});
         fresh.__cloud.hash=hash(fresh);
         if(old&&!old.__cloud&&row.owner_id===state.user.id){try{localStorage.setItem(KEY+'-before-cloud-'+row.id,JSON.stringify(old))}catch(e){}}
         if(i<0)app.projects.push(fresh);else app.projects[i]=fresh;changed=true;
