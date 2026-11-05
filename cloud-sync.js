@@ -18,6 +18,7 @@
     var value=canonical?Object.assign({},x,{id:canonical}):x;
     return JSON.parse(JSON.stringify(value,function(k,v){return (k==='__cloud'||k==='fileKey')?undefined:v}));
   }
+  function localProjectViewId(row,userId,originalId){return row.owner_id!==userId?'shared-cloud-'+row.id:originalId}
   function hash(x){var s=JSON.stringify(clean(x)),h=2166136261;for(var i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return String(h>>>0)+':'+s.length}
   function cache(){try{var snapshot=Object.assign({},app,{projects:app.projects.filter(function(p){return !p.__cloud||p.__cloud.ownerId===state.user?.id})});
       if(!snapshot.projects.some(function(p){return p.id===snapshot.activeId}))snapshot.activeId=snapshot.projects[0]?.id||null;
@@ -45,7 +46,7 @@
     if(!state.client){dialog('<p>Supabase SDK 加载失败，请检查网络后刷新。</p>');return}
     if(!state.user){dialog('<p>请输入邮箱，使用收到的登录链接验证身份。只有被邀请的邮箱才能看到共享项目。</p><label>邮箱</label><input id="cloudEmail" type="email" placeholder="你的工作邮箱"><button class="primary" data-cloud="login">发送登录链接</button>');return}
     var p=active(),c=p?.__cloud,owner=c?.ownerId===state.user.id||!!window.MRS_TEAM?.isAdmin?.();
-    var body='<p>当前账号：<b>'+escapeHtml(state.user.email)+'</b></p><div class="cloud-note">'+escapeHtml(state.message||'登录成功')+'</div><div><button data-cloud="list">刷新云端项目</button><button data-cloud="logout">退出登录</button>';
+    var body='<p>当前账号：<b>'+escapeHtml(state.user.email)+'</b></p><div class="cloud-note">'+escapeHtml(state.message||'登录成功')+'</div><div><button data-cloud="list">刷新云端项目</button><button data-cloud="diagnose">检查共享数据</button><button data-cloud="logout">退出登录</button>';
     if(p&&!c&&(!window.MRS_TEAM||window.MRS_TEAM.canCreate()))body+='<button class="primary" data-cloud="publish">将当前项目发布到云端</button>';
     if(owner)body+='<button class="primary" data-cloud="push">立即保存最新进度</button>';
     body+='</div>';
@@ -88,6 +89,11 @@
       state.user=null;cache();render();notice('☁ 未登录');show();return;
     }
     if(which==='list'){await pull();show();return}
+    if(which==='diagnose'){await diagnose();return}
+    if(which==='copy-diagnostic'){
+      try{await navigator.clipboard.writeText(state.diagnosticText||'');notice('☁ 诊断信息已复制');}catch(e){prompt('复制诊断信息',state.diagnosticText||'')}
+      return;
+    }
     if(which==='publish'){await publish();show();return}
     if(which==='push'){await push(true);show();return}
     if(which==='share-members'){el('#cloudOverlay')?.remove();window.MRS_DIRECTORY?.openSharePicker?.();return}
@@ -98,6 +104,54 @@
       show();return;
     }
     if(which==='open'){await pull(target.dataset.id);el('#cloudOverlay')?.remove()}
+  }
+  async function diagnose(){
+    if(!state.client||!state.user)return;
+    dialog('<p>正在从 Supabase 读取当前账号的成员状态、项目共享授权和真实云端内容…</p>');
+    var member=await state.client.from('mrs_team_members').select('status,can_create,can_share').eq('user_id',state.user.id).maybeSingle();
+    var grants=await state.client.from('mrs_project_shares').select('project_id').eq('recipient_id',state.user.id);
+    var projects=await state.client.from('mrs_projects').select('id,name,owner_id,revision,payload').order('updated_at',{ascending:false});
+    var rows=projects.data||[],matched=rows.map(function(p){
+      var v=p.payload;
+      if(typeof v==='string'){try{v=JSON.parse(v)}catch(e){v=null}}
+      return {id:p.id,name:p.name,owner:p.owner_id===state.user.id?'本人':'他人',
+        skus:Array.isArray(v?.skus)?v.skus.length:'无效',
+        competitors:Array.isArray(v?.competitors)?v.competitors.length:'无效',
+        versions:Array.isArray(v?.versions)?v.versions.length:'无效',
+        loaded:app.projects.some(function(x){return x.__cloud?.id===p.id})};
+    });
+    var activeProject=active();
+    var lines=[
+      'Market Research Studio 共享诊断 · V'+RELEASE,
+      '登录邮箱: '+state.user.email,
+      '成员状态: '+(member.error?member.error.code+' '+member.error.message:(member.data?.status||'未找到记录')),
+      '共享记录数: '+(grants.error?grants.error.code+' '+grants.error.message:grants.data.length),
+      '云端可读取项目数: '+(projects.error?projects.error.code+' '+projects.error.message:rows.length),
+      '当前显示: '+(activeProject?.name||'无')+' / '+(activeProject?.__cloud?'云端项目':'本地项目'),
+      '云端项目摘要:'
+    ];
+    matched.forEach(function(p){lines.push(p.name+' | '+p.owner+' | '+p.skus+' SKU / '+p.competitors+' 竞品 / '+p.versions+' 版本 | 本地已加载: '+(p.loaded?'是':'否'))});
+    if(!matched.length)lines.push('无可读云端项目');
+    state.diagnosticText=lines.join('\n');
+    var reason='';
+    if(member.data?.status!=='active'&&!window.MRS_TEAM?.isAdmin?.())reason='当前账号尚未获管理员批准，不能读取团队项目。';
+    else if(projects.error)reason='读取云端项目报错：'+projects.error.code+' '+projects.error.message;
+    else if(grants.data?.length&&!rows.length)reason='已存在共享记录，但读取不到任何云端项目：请管理员检查 RLS 和共享对应的项目 ID。';
+    else if(rows.length&&matched.some(function(x){return x.skus==='无效'||x.competitors==='无效'}))reason='部分云端项目内容缺少 SKU / 竞品数组：请所有者重新保存该项目。';
+    else if(rows.length&&matched.some(function(x){return !x.loaded}))reason='云端已有数据，但本浏览器尚未加载：点击刷新云端项目。';
+    else if(rows.length)reason='云端已能读取项目。请从「团队同步 → 当前账号可访问的项目」点击打开。';
+    else reason='当前账号没有获得可读项目。请管理员核对共享名单和成员邮箱。';
+    var html='<div class="cloud-note"><b>诊断结果：</b>'+escapeHtml(reason)+'</div>';
+    html+='<p>当前账号：'+escapeHtml(state.user.email)+' · 成员状态：'+escapeHtml(member.data?.status||'未知')+
+      '<br>已授予的项目数：'+escapeHtml(grants.error?'读取失败':grants.data.length)+
+      ' · 实际可读取项目：'+escapeHtml(projects.error?'读取失败':rows.length)+'</p>';
+    matched.forEach(function(x){
+      html+='<div class="cloud-line"><div><b>'+escapeHtml(x.name)+'</b> <span style="font-size:12px;color:#8793a5">('+escapeHtml(x.owner)+')</span><p>'+
+      escapeHtml(x.skus)+' SKU · '+escapeHtml(x.competitors)+' 竞品 · '+escapeHtml(x.versions)+' 版本 · '+(x.loaded?'已加载':'未加载')+
+      '</p></div><button data-cloud="open" data-id="'+escapeHtml(x.id)+'">打开</button></div>';
+    });
+    html+='<div style="margin-top:16px"><button data-cloud="copy-diagnostic">复制诊断结果</button><button data-cloud="list">刷新云端项目</button><button data-cloud="close">关闭</button></div>';
+    dialog(html);
   }
   async function publish(){
     var p=active();if(!p||!state.user)return;
@@ -162,7 +216,7 @@
         // Never let a teammate's shared project keep that local ID:
         // project() looks up by ID and would otherwise pick the empty local seed.
         var isShared=row.owner_id!==state.user.id;
-        var displayId=isShared?'shared-cloud-'+row.id:content.id;
+        var displayId=localProjectViewId(row,state.user.id,content.id);
         if(old?.__cloud?.revision===row.revision&&old.id===displayId)return;
         if(old?.__cloud?.ownerId===state.user.id&&hash(old)!==old.__cloud.hash){notice('⚠ 本机有尚未同步的修改，未覆盖');return}
         var fresh=Object.assign({},content,{id:displayId,__cloud:{id:row.id,ownerId:row.owner_id,revision:row.revision,originalLocalId:isShared?content.id:undefined}});
