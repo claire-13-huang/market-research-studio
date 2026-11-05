@@ -1,4 +1,4 @@
-/* Market Research Studio V0.6 — admin console, enabled only after team-access-v06.sql and admin bootstrap. */
+/* Market Research Studio V0.7 — admin console, enabled only after team-access-v06.sql and admin bootstrap. */
 (function () {
   'use strict';
   var state = {client:null,user:null,admin:false,member:null,available:false,refreshing:false,message:''};
@@ -105,20 +105,23 @@
   }
   async function showAdmin(){
     dialog('<p>正在加载成员与审批列表…</p>');
-    var [members,requests,events,projects]=await Promise.all([
+    var [members,requests,events,projects,profiles]=await Promise.all([
       state.client.from('mrs_team_members').select('user_id,email,status,can_create,can_share,joined_at').order('joined_at',{ascending:false}),
       state.client.from('mrs_permission_requests').select('id,user_id,request_type,note,status,requested_at').eq('status','pending').order('requested_at',{ascending:true}),
       state.client.from('mrs_team_events').select('user_id,action,created_at').order('created_at',{ascending:false}).limit(15),
-      state.client.from('mrs_projects').select('id,name,owner_id,revision,updated_at').order('updated_at',{ascending:false}).limit(100)
+      state.client.from('mrs_projects').select('id,name,owner_id,revision,updated_at').order('updated_at',{ascending:false}).limit(100),
+      state.client.from('mrs_member_profiles').select('user_id,display_name,email')
     ]);
     var err=[members,requests,events,projects].find(function(r){return r.error});
     if(err){dialog('<p>管理员数据读取失败：'+esc(err.error.message)+'</p>');return}
-    var emails={};members.data.forEach(function(m){emails[m.user_id]=m.email});
+    var emails={},names={};members.data.forEach(function(m){emails[m.user_id]=m.email});
+    if(!profiles.error)(profiles.data||[]).forEach(function(m){names[m.user_id]=m.display_name?.trim()||'未设置姓名'});
+    function labelFor(id){return (names[id]||'未设置姓名')+' · '+(emails[id]||id)}
     var html='<p>主账号：'+esc(state.user.email)+'。管理员能查看团队项目、批准新成员、控制创建和分享权限。</p>';
     if(state.message)html+='<div class="mrs-team-notice">'+esc(state.message)+'</div>';
-    html+='<h3>成员审批与权限 ('+members.data.length+')</h3><table><thead><tr><th>邮箱</th><th>状态</th><th>创建项目</th><th>分享项目</th><th>管理操作</th></tr></thead><tbody>';
+    html+='<h3>成员审批与权限 ('+members.data.length+')</h3><table><thead><tr><th>姓名 / 邮箱</th><th>状态</th><th>创建项目</th><th>分享项目</th><th>管理操作</th></tr></thead><tbody>';
     members.data.filter(function(m){return m.user_id!==state.user.id}).forEach(function(m){
-      html+='<tr><td>'+esc(m.email)+'</td><td>'+esc(m.status)+'</td><td>'+(m.can_create?'允许':'未允许')+'</td><td>'+(m.can_share?'允许':'未允许')+'</td><td>';
+      html+='<tr><td><b>'+esc(names[m.user_id]||'未设置姓名')+'</b><br><small>'+esc(m.email)+'</small></td><td>'+esc(m.status)+'</td><td>'+(m.can_create?'允许':'未允许')+'</td><td>'+(m.can_share?'允许':'未允许')+'</td><td>';
       if(m.status!=='active')html+='<button class="primary" data-team-action="approve-member" data-id="'+esc(m.user_id)+'">批准进入</button>';
       if(m.status!=='suspended')html+='<button data-team-action="suspend-member" data-id="'+esc(m.user_id)+'">暂停</button>';
       if(m.status==='active'){
@@ -131,16 +134,16 @@
     html+='<h3>成员申请 ('+requests.data.length+')</h3>';
     if(!requests.data.length)html+='<p>暂无待审批请求。</p>';
     requests.data.forEach(function(q){
-      html+='<div class="mrs-team-line" style="padding:10px;border-bottom:1px solid #e9edf5"><span>'+esc(emails[q.user_id]||q.user_id)+' 申请共享权限</span><span><button class="primary" data-team-action="approve-request" data-user="'+esc(q.user_id)+'" data-id="'+esc(q.id)+'">批准</button><button data-team-action="reject-request" data-id="'+esc(q.id)+'">拒绝</button></span></div>';
+      html+='<div class="mrs-team-line" style="padding:10px;border-bottom:1px solid #e9edf5"><span>'+esc(labelFor(q.user_id))+' 申请共享权限</span><span><button class="primary" data-team-action="approve-request" data-user="'+esc(q.user_id)+'" data-id="'+esc(q.id)+'">批准</button><button data-team-action="reject-request" data-id="'+esc(q.id)+'">拒绝</button></span></div>';
     });
     html+='<h3>团队项目 ('+projects.data.length+')</h3>';
     if(!projects.data.length)html+='<p>暂无云端项目。</p>';
     projects.data.forEach(function(p){
-      html+='<div class="mrs-team-line" style="padding:10px;border-bottom:1px solid #e9edf5"><span><b>'+esc(p.name)+'</b><br><small>创建者：'+esc(emails[p.owner_id]||p.owner_id)+' · V'+esc(p.revision)+'</small></span><button data-team-action="open-project" data-id="'+esc(p.id)+'">查看项目</button></div>';
+      html+='<div class="mrs-team-line" style="padding:10px;border-bottom:1px solid #e9edf5"><span><b>'+esc(p.name)+'</b><br><small>创建者：'+esc(labelFor(p.owner_id))+' · V'+esc(p.revision)+'</small></span><button data-team-action="open-project" data-id="'+esc(p.id)+'">查看项目</button></div>';
     });
     html+='<h3>最近登录与操作</h3>';
     events.data.forEach(function(e){
-      html+='<div class="mrs-team-line" style="font-size:13px;padding:5px 0"><span>'+esc(emails[e.user_id]||e.user_id)+' · '+esc(e.action)+'</span><small>'+esc(new Date(e.created_at).toLocaleString('zh-CN'))+'</small></div>';
+      html+='<div class="mrs-team-line" style="font-size:13px;padding:5px 0"><span>'+esc(labelFor(e.user_id))+' · '+esc(e.action)+'</span><small>'+esc(new Date(e.created_at).toLocaleString('zh-CN'))+'</small></div>';
     });
     html+='<div style="margin-top:20px"><button class="primary" data-team-action="refresh-admin">刷新数据</button></div>';
     dialog(html);
