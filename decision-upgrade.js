@@ -103,4 +103,7 @@
     }
     if(btn.dataset.action==='dm-print-brief')window.print();
   });
+  document.addEventListener('change',event=>{
+    if(page==='report'&&['pilotMin','pilotMax'].includes(event.target?.dataset?.skuField))render();
+  });
 })();
