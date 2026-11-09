@@ -16,6 +16,7 @@ jobs:
           node --check app.js
           node --check report-visual.js
           node --check decision-upgrade.js
+          node --check investment-matrix.js
           node --check cloud-sync.js
           node --check cloud-config.js
       - name: Validate release and asset links
