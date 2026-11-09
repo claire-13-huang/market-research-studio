@@ -1,5 +1,5 @@
 {
-  "version": "0.8.5",
+  "version": "0.8.6",
   "releasedAt": "2026-11-09",
-  "description": "Add ROI, target-price scenario comparison, 50-100 unit pilot funding and executive decision brief without changing stored project data"
+  "description": "Manager-ready profit matrix: price tiers, monthly units, year profits, capital ROI and source-qualified go/no-go evidence"
 }
