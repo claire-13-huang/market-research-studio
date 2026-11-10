@@ -18,3 +18,50 @@
 @media(max-width:1320px){.cols5{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.cols5{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:780px){.cols5{grid-template-columns:1fr}.section-kicker,.insight-strip{flex-wrap:wrap}.chart .barline{grid-template-columns:90px 1fr 60px}}
+
+
+/* V0.8.7 — stable pricing matrix columns and complete browser PDF output. */
+.ix-scroll{overflow-x:auto!important;overflow-y:visible!important;max-width:100%;width:100%;-webkit-overflow-scrolling:touch}
+.ix-table{width:100%;min-width:1500px!important;table-layout:auto!important;white-space:nowrap}
+.ix-table th,.ix-table td{vertical-align:middle;line-height:1.5}
+.ix-table th:first-child,.ix-table td:first-child{position:static!important;left:auto!important;z-index:auto!important;width:170px;min-width:170px;text-align:left}
+.ix-table th:first-child{background:#f4f6fa}
+.ix-table tr.ix-test td:first-child{background:#eef5ff}
+.ix-table tr.ix-current td:first-child{background:#f8f9fd}
+.ix-table .ix-label{white-space:nowrap;overflow:visible}
+
+@page{size:A4 landscape;margin:10mm}
+@media print{
+  html,body{width:100%!important;height:auto!important;background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .sidebar,.top-actions,.toolbar,.btn,.toast,#cloudUpdate,.cloud-update,#cloudBadge,#cloudButton,
+  .ix-tools,.ix-original,.ix-controls,.ix-trial-ctrl{display:none!important}
+  .shell,main,.content{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important}
+  .top{height:auto!important;padding:0 0 7mm!important;border:0!important;background:#fff!important}
+  .card,.section,.grid,.data-table-wrap,.ix-scroll{break-inside:auto!important;page-break-inside:auto!important;overflow:visible!important;overflow-x:visible!important;overflow-y:visible!important;max-height:none!important}
+  .card{box-shadow:none!important;margin-bottom:6mm!important}
+  .ix-report-head{break-inside:avoid!important;page-break-inside:avoid!important}
+  .ix-evidence,.ix-kpis{display:block!important}
+  .ix-evidence article,.ix-kpis>div{display:inline-block!important;vertical-align:top!important;width:48%!important;margin:0 1% 4mm 0!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  .ix-section-title{break-after:avoid!important;page-break-after:avoid!important;margin-top:7mm!important}
+  .ix-table{display:table!important;width:100%!important;min-width:0!important;max-width:100%!important;table-layout:fixed!important;white-space:normal!important;border-collapse:collapse!important;font-size:7pt!important}
+  .ix-table thead{display:table-header-group!important}
+  .ix-table tfoot{display:table-footer-group!important}
+  .ix-table tr{break-inside:avoid!important;page-break-inside:avoid!important}
+  .ix-table th,.ix-table td{position:static!important;left:auto!important;z-index:auto!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;line-height:1.25!important;padding:4px 3px!important}
+  .ix-table th:first-child,.ix-table td:first-child{width:12%!important;min-width:0!important}
+  .ix-table th:nth-child(2),.ix-table td:nth-child(2){width:7%!important}
+  .ix-table th:nth-child(3),.ix-table td:nth-child(3){width:6%!important}
+  .ix-table th:nth-child(4),.ix-table td:nth-child(4){width:8%!important}
+  .ix-table th:nth-child(5),.ix-table td:nth-child(5){width:7%!important}
+  .ix-table th:nth-child(6),.ix-table td:nth-child(6){width:7%!important}
+  .ix-table th:nth-child(7),.ix-table td:nth-child(7){width:6%!important}
+  .ix-table th:nth-child(8),.ix-table td:nth-child(8){width:8%!important}
+  .ix-table th:nth-child(9),.ix-table td:nth-child(9){width:8%!important}
+  .ix-table th:nth-child(10),.ix-table td:nth-child(10){width:9%!important}
+  .ix-table th:nth-child(11),.ix-table td:nth-child(11){width:9%!important}
+  .ix-table th:nth-child(12),.ix-table td:nth-child(12){width:13%!important}
+  .ix-status{white-space:normal!important;font-size:7pt!important}
+  .ix-note,.ix-source{font-size:8pt!important;line-height:1.45!important}
+  .ix-kpis>div strong{font-size:15pt!important}
+  h1,h2,h3{break-after:avoid!important;page-break-after:avoid!important}
+}
