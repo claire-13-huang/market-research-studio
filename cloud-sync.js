@@ -5,7 +5,7 @@
   var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:'',initialPullDone:false};
   window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user,project:active(),pushLatest:pushLatest}};
   var PARAM = 'shared_project';
-  var RELEASE = '0.8.7';
+  var RELEASE = '0.8.8';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
@@ -24,7 +24,19 @@
       if(!snapshot.projects.some(function(p){return p.id===snapshot.activeId}))snapshot.activeId=snapshot.projects[0]?.id||null;
       localStorage.setItem(KEY,JSON.stringify(snapshot))}catch(e){console.warn('Cannot save local cache',e)}}
   function notice(s){state.message=s;var badge=el('#cloudBadge');if(badge)badge.textContent=s}
-  function urlFor(id){var u=new URL(location.href);u.searchParams.set(PARAM,id);u.searchParams.delete('build');u.searchParams.delete('v');return u.toString()}
+  function cleanAppUrl(){
+    try{
+      var u=new URL(location.href);
+      ['build','v','__mrs_update'].forEach(function(k){u.searchParams.delete(k)});
+      var clean=u.pathname+u.search+u.hash;
+      if(clean!==location.pathname+location.search+location.hash)history.replaceState(history.state,'',clean);
+    }catch(e){}
+  }
+  function urlFor(id){
+    var u=new URL(location.href);u.searchParams.set(PARAM,id);
+    ['build','v','__mrs_update'].forEach(function(k){u.searchParams.delete(k)});
+    return u.toString();
+  }
   function makeShell(){
     var top=el('.top-actions');if(!top||el('#cloudButton'))return;
     var b=document.createElement('span');b.id='cloudBadge';b.className='cloud-badge';b.textContent='☁ 未连接';
@@ -273,18 +285,56 @@
     main.querySelectorAll('input,textarea').forEach(function(input){input.disabled=true});
     if(el('#btnSaveVersion'))el('#btnSaveVersion').disabled=true;
   }
+  function canAutoReload(){
+    var focused=document.activeElement;
+    if(focused&&focused.matches('input,textarea,select,[contenteditable="true"]'))return false;
+    var modal=el('#modalRoot');
+    if(modal&&!modal.classList.contains('hidden'))return false;
+    return true;
+  }
+  function saveVisibleDraft(){
+    var p=active(),report=el('#reportEdit');
+    if(!p||viewer(p))return;
+    if(report&&report.value!==String(p.report||''))p.report=report.value;
+    if(typeof save==='function')save();
+  }
+  async function reloadForRelease(version){
+    if(state.autoUpdating||!canAutoReload())return;
+    state.autoUpdating=true;
+    try{
+      saveVisibleDraft();
+      var p=active(),c=p&&p.__cloud;
+      if(state.user&&c&&(c.ownerId===state.user.id||window.MRS_TEAM?.isAdmin?.())){
+        var synced=await pushLatest();
+        if(!synced){state.autoUpdating=false;return}
+      }
+      if(!canAutoReload()){state.autoUpdating=false;return}
+      var key='mrs-auto-update-attempt:'+version;
+      var attempts=Number(sessionStorage.getItem(key)||'0');
+      if(attempts>=2){state.autoUpdating=false;return}
+      sessionStorage.setItem(key,String(attempts+1));
+      var u=new URL(location.href);
+      ['build','v','__mrs_update'].forEach(function(k){u.searchParams.delete(k)});
+      u.searchParams.set('__mrs_update',version+'-'+Date.now());
+      // The one-time query bypasses a stale HTML cache. It is removed on startup,
+      // so the user's bookmark and address bar remain on the permanent URL.
+      location.replace(u.toString());
+    }catch(e){state.autoUpdating=false}
+  }
   async function checkRelease(){
     try{
       var r=await fetch('release.json?t='+Date.now(),{cache:'no-store'});
       if(!r.ok)return;
-      var d=await r.json();if(d.version===RELEASE||!d.version||el('#cloudUpdate'))return;
-      var n=document.createElement('div');n.id='cloudUpdate';n.className='cloud-update';
-      n.innerHTML='网站已有新版本 '+escapeHtml(d.version)+' <button id="cloudReload">刷新应用</button>';
-      document.body.appendChild(n);
-      el('#cloudReload').onclick=function(){var u=new URL(location.href);u.searchParams.set('build',d.version);location.replace(u.toString())}
+      var d=await r.json();
+      if(!d.version)return;
+      var key='mrs-auto-update-attempt:'+d.version;
+      if(d.version===RELEASE){sessionStorage.removeItem(key);return}
+      if(Number(sessionStorage.getItem(key)||'0')>=2)return;
+      await reloadForRelease(String(d.version));
     }catch(e){}
   }
   async function initCloud(){
+    cleanAppUrl();
     makeShell();
     var oldSave=save;save=function(){oldSave.apply(this,arguments);cache();schedule()};
     var oldRender=render;render=function(){var out=oldRender.apply(this,arguments);readonly();return out};
