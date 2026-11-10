@@ -1,5 +1,5 @@
 {
-  "version": "0.8.6",
-  "releasedAt": "2026-11-09",
-  "description": "Manager-ready profit matrix: price tiers, monthly units, year profits, capital ROI and source-qualified go/no-go evidence"
+  "version": "0.8.7",
+  "releasedAt": "2026-11-10",
+  "description": "Fix pricing matrix column overlap, landscape multi-page PDF printing, and release badge version synchronization"
 }
