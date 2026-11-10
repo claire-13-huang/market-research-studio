@@ -22,7 +22,7 @@
 
 /* V0.8.7 — stable pricing matrix columns and complete browser PDF output. */
 .ix-scroll{overflow-x:auto!important;overflow-y:visible!important;max-width:100%;width:100%;-webkit-overflow-scrolling:touch}
-.ix-table{width:100%;min-width:1500px;table-layout:auto;white-space:nowrap}
+.ix-table{width:100%;min-width:1500px!important;table-layout:auto!important;white-space:nowrap}
 .ix-table th,.ix-table td{vertical-align:middle;line-height:1.5}
 .ix-table th:first-child,.ix-table td:first-child{position:static!important;left:auto!important;z-index:auto!important;width:170px;min-width:170px;text-align:left}
 .ix-table th:first-child{background:#f4f6fa}
