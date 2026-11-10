@@ -5,7 +5,7 @@
   var state = {client:null,user:null,pushing:false,queued:false,pulling:false,timer:null,message:'',initialPullDone:false};
   window.MRS_CLOUD_CONTEXT=function(){return {client:state.client,user:state.user,project:active(),pushLatest:pushLatest}};
   var PARAM = 'shared_project';
-  var RELEASE = '0.8.4';
+  var RELEASE = '0.8.7';
   function el(s){return document.querySelector(s)}
   function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function active(){return typeof project==='function'?project():null}
