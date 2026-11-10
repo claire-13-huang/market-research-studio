@@ -1,5 +1,5 @@
 {
-  "version": "0.8.7",
+  "version": "0.8.8",
   "releasedAt": "2026-11-10",
-  "description": "Fix pricing matrix column overlap, landscape multi-page PDF printing, and release badge version synchronization"
+  "description": "Keep one permanent bookmark URL and automatically update all open app windows after safe local/cloud save"
 }
